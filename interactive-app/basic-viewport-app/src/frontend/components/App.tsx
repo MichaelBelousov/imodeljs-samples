@@ -4,6 +4,7 @@
 *--------------------------------------------------------------------------------------------*/
 import { Config, Id64, Id64String, OpenMode } from "@bentley/bentleyjs-core";
 import { ContextRegistryClient, Project } from "@bentley/context-registry-client";
+import { Point3d } from "@bentley/geometry-core";
 import "@bentley/icons-generic-webfont/dist/bentley-icons-generic-webfont.css";
 import { IModelQuery } from "@bentley/imodelhub-client";
 import { AuthorizedFrontendRequestContext, DrawingViewState, FrontendRequestContext, IModelApp, IModelConnection, RemoteBriefcaseConnection, SpatialViewState } from "@bentley/imodeljs-frontend";
@@ -24,6 +25,7 @@ export interface AppState {
   };
   imodel?: IModelConnection;
   viewDefinitionId?: Id64String;
+  pinLocations: Point3d[];
 }
 
 /** A component the renders the whole application UI */
@@ -37,6 +39,7 @@ export default class App extends React.Component<{}, AppState> {
         isAuthorized: BasicViewportApp.oidcClient.isAuthorized,
         isLoading: false,
       },
+      pinLocations: [],
     };
   }
 
@@ -118,7 +121,11 @@ export default class App extends React.Component<{}, AppState> {
       ui = (<OpenIModelButton onIModelSelected={this._onIModelSelected} />);
     } else {
       // if we do have an imodel and view definition id - render imodel components
-      ui = (<IModelComponents imodel={this.state.imodel} viewDefinitionId={this.state.viewDefinitionId} />);
+      ui = (
+        <IModelComponents
+        imodel={this.state.imodel} viewDefinitionId={this.state.viewDefinitionId}
+        getPins={() => this.state.pinLocations}
+        setPins={(nextPins: Point3d[]) => this.setState({pinLocations: nextPins})} />);
     }
 
     // render the app
@@ -213,6 +220,8 @@ class OpenIModelButton extends React.PureComponent<OpenIModelButtonProps, OpenIM
 interface IModelComponentsProps {
   imodel: IModelConnection;
   viewDefinitionId: Id64String;
+  getPins(): Point3d[];
+  setPins(nextPins: Point3d[]): void;
 }
 
 /** Renders a viewport */
@@ -224,7 +233,7 @@ class IModelComponents extends React.PureComponent<IModelComponentsProps> {
           style={{ height: "100vh" }}
           imodel={this.props.imodel}
           viewDefinitionId={this.props.viewDefinitionId} />
-        <Toolbar />
+        <Toolbar  getPins={this.props.getPins} setPins={this.props.setPins} />
       </>
     );
   }

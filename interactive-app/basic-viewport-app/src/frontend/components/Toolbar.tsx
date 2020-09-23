@@ -6,9 +6,16 @@
 import { FitViewTool, IModelApp, PanViewTool, RotateViewTool, SelectionTool, ZoomViewTool } from "@bentley/imodeljs-frontend";
 import * as React from "react";
 import "./Components.scss";
+import { PlacePin } from "./Pin";
+import { Point3d } from "@bentley/geometry-core";
+
+interface ToolbarProps {
+  getPins(): Point3d[];
+  setPins(nextPins: Point3d[]): void;
+}
 
 /** Toolbar containing simple navigation tools */
-const toolbar = () => {
+const toolbar = (props: ToolbarProps) => {
   return (
     <div className="toolbar">
       <a href="#cursor" title={SelectionTool.flyover} onClick={select}><span className="icon icon-cursor"></span></a>
@@ -16,6 +23,12 @@ const toolbar = () => {
       <a href="#gyroscope" title={RotateViewTool.flyover} onClick={rotate}><span className="icon icon-gyroscope"></span></a>
       <a href="#hand" title={PanViewTool.flyover} onClick={pan}><span className="icon icon-hand-2"></span></a>
       <a href="#zoom" title={ZoomViewTool.flyover} onClick={zoom}><span className="icon icon-zoom"></span></a>
+      <a href="#place-pin"
+         title={PlacePin.flyover}
+         onClick={() => IModelApp.tools.run(PlacePin.toolId, props.getPins, props.setPins)}
+      >
+        <span className="icon icon-map"/>
+      </a>
     </div>
   );
 };

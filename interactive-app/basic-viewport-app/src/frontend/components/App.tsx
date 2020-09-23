@@ -130,8 +130,24 @@ export default class App extends React.Component<{}, AppState> {
 
     // render the app
     return (
-      <div className="app">
-        {ui}
+      <div style={{display: "flex"}}>
+        {/* PLEASE dont do this at home :( [s]css is much better */}
+        <div id="sidebar" style={{width: "270px", display: "flex", flexDirection: "column"}}>
+          {this.state.pinLocations.map((pin, index) =>
+            <span key={index}>
+              Marker {index}: {pin.x.toFixed(2)}, {pin.y.toFixed(2)}, {pin.z.toFixed(2)}
+              {" "}
+              <a href="#" onClick={() => this.setState({pinLocations: this.state.pinLocations.filter((p) => p !== pin)}, () => {
+                // setState will not immediately run the update, that's exactly what the second
+                // callback argument to setState was designed for, running code after the state is set
+                IModelApp.viewManager.invalidateDecorationsAllViews();
+              })}>X</a>
+            </span>,
+          )}
+        </div>
+        <div className="app" style={{width: "calc(100% - 270px)"}}>
+          {ui}
+        </div>
       </div>
     );
   }

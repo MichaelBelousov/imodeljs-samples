@@ -11,15 +11,21 @@ export class PinMarker extends Marker {
 }
 
 export interface PinDecorator extends Decorator {
-  pins: PinMarker[];
+  markers: Map<Point3d, PinMarker>;
+  getPins?: () => Point3d[];
 }
 
 export const pinDecorator: PinDecorator = {
-  pins: [],
+  markers: new Map(),
   // when registered, decorate is called by the view manager every requested frame/update
   decorate(ctx: DecorateContext) {
-    for (const pin of this.pins) {
-      pin.addDecoration(ctx);
+    const currentPins = new Set(this.getPins?.());
+    for (const loc of currentPins) {
+      if (!this.markers.has(loc)) this.markers.set(loc, new PinMarker(loc));
+    }
+    for (const [loc, marker] of this.markers) {
+      if (!currentPins.has(loc)) this.markers.delete(loc);
+      else marker.addDecoration(ctx);
     }
   },
 };
@@ -38,7 +44,6 @@ export class PlacePin extends PrimitiveTool {
   public async onDataButtonDown(ev: BeButtonEvent) {
     const nextPins = [...this._getPins(), ev.point];
     this._setPins(nextPins);
-    pinDecorator.pins = nextPins.map((p) => new PinMarker(p));
     this.exitTool(); // only let them place one marker at a time
     return EventHandled.Yes;
   }
@@ -46,6 +51,7 @@ export class PlacePin extends PrimitiveTool {
   public run(inGetPins: PlacePin["_getPins"], inSetPins: PlacePin["_setPins"]) {
     this._getPins = inGetPins;
     this._setPins = inSetPins;
+    pinDecorator.getPins = inGetPins;
     return super.run();
   }
 

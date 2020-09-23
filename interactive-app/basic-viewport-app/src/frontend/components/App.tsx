@@ -13,6 +13,7 @@ import { Button, ButtonSize, ButtonType, Spinner, SpinnerSize } from "@bentley/u
 import * as React from "react";
 import { BasicViewportApp } from "../api/BasicViewportApp";
 import "./App.css";
+import PinProvider from "./Pin";
 import Toolbar from "./Toolbar";
 
 // cSpell:ignore imodels
@@ -30,27 +31,6 @@ export interface AppState {
 
 /** A component the renders the whole application UI */
 export default class App extends React.Component<{}, AppState> {
-  public PlacePin: typeof Tool = (() => {
-    const componentThis = this;
-    return class PlacePin extends PrimitiveTool {
-      public static toolId = "PlacePin";
-      // this flyover value is actually supposed to be a key, not text. but the translator returns invalid keys
-      // For a real application, see https://www.imodeljs.org/learning/frontend/localization/
-      public static get flyover() { return "Place Pin"; }
-
-      public async onDataButtonDown(ev: BeButtonEvent) {
-        const nextPins = [...componentThis.state.pinLocations, ev.point];
-        componentThis.setState({pinLocations: nextPins});
-        this.exitTool(); // only let them place one marker at a time
-        return EventHandled.Yes;
-      }
-
-      public requireWriteableTarget () { return false; } // to support read-only iModels
-      // important for most applications, but we can ignore it since our scope is so small
-      public onRestartTool() {}
-    };
-  })();
-
   /** Creates an App instance */
   constructor(props?: any, context?: any) {
     super(props, context);
@@ -66,9 +46,6 @@ export default class App extends React.Component<{}, AppState> {
   public componentDidMount() {
     // Initialize authorization state, and add listener to changes
     BasicViewportApp.oidcClient.onUserStateChanged.addListener(this._onUserStateChanged);
-    // we need to attach a translation namespace, but we won't actually setup translation
-    this.PlacePin.namespace = IModelApp.i18n.registerNamespace("MyApp");
-    IModelApp.tools.register(this.PlacePin);
   }
 
   public componentWillUnmount() {
@@ -145,30 +122,32 @@ export default class App extends React.Component<{}, AppState> {
     } else {
       // if we do have an imodel and view definition id - render imodel components
       ui = (
-        <IModelComponents imodel={this.state.imodel} viewDefinitionId={this.state.viewDefinitionId} placePinTool={this.PlacePin} />);
+        <IModelComponents imodel={this.state.imodel} viewDefinitionId={this.state.viewDefinitionId} />);
     }
 
     // render the app
     return (
-      <div style={{display: "flex"}}>
-        {/* PLEASE dont do this at home :( [s]css is much better */}
-        <div id="sidebar" style={{width: "270px", display: "flex", flexDirection: "column"}}>
-          {this.state.pinLocations.map((pin, index) =>
-            <span key={index}>
-              Marker {index}: {pin.x.toFixed(2)}, {pin.y.toFixed(2)}, {pin.z.toFixed(2)}
-              {" "}
-              <a href="#" onClick={() => this.setState({pinLocations: this.state.pinLocations.filter((p) => p !== pin)}, () => {
-                // setState will not immediately run the update, that's exactly what the second
-                // callback argument to setState was designed for, running code after the state is set
-                IModelApp.viewManager.invalidateDecorationsAllViews();
-              })}>X</a>
-            </span>,
-          )}
-        </div>
-        <div className="app" style={{width: "calc(100% - 270px)"}}>
-          {ui}
-        </div>
-      </div>
+      <PinProvider appState={this.state} setPins={(pins) => this.setState({pinLocations: pins})}>
+        <div style={{display: "flex"}}>
+          {/* PLEASE dont do this at home :( [s]css is much better */}
+          <div id="sidebar" style={{width: "270px", display: "flex", flexDirection: "column"}}>
+            {this.state.pinLocations.map((pin, index) =>
+              <span key={index}>
+                Marker {index}: {pin.x.toFixed(2)}, {pin.y.toFixed(2)}, {pin.z.toFixed(2)}
+                {" "}
+                <a href="#" onClick={() => this.setState({pinLocations: this.state.pinLocations.filter((p) => p !== pin)}, () => {
+                  // setState will not immediately run the update, that's exactly what the second
+                  // callback argument to setState was designed for, running code after the state is set
+                  IModelApp.viewManager.invalidateDecorationsAllViews();
+                })}>X</a>
+              </span>,
+            )}
+          </div>
+          <div className="app" style={{width: "calc(100% - 270px)"}}>
+            {ui}
+          </div>
+        </ div>
+      </PinProvider>
     );
   }
 }
@@ -256,7 +235,6 @@ class OpenIModelButton extends React.PureComponent<OpenIModelButtonProps, OpenIM
 interface IModelComponentsProps {
   imodel: IModelConnection;
   viewDefinitionId: Id64String;
-  placePinTool: typeof Tool;
 }
 
 /** Renders a viewport */
@@ -268,7 +246,7 @@ class IModelComponents extends React.PureComponent<IModelComponentsProps> {
           style={{ height: "100vh" }}
           imodel={this.props.imodel}
           viewDefinitionId={this.props.viewDefinitionId} />
-        <Toolbar placePinTool={this.props.placePinTool} />
+        <Toolbar />
       </>
     );
   }

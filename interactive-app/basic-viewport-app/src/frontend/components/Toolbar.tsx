@@ -6,13 +6,11 @@
 import { FitViewTool, IModelApp, PanViewTool, RotateViewTool, SelectionTool, Tool, ZoomViewTool } from "@bentley/imodeljs-frontend";
 import * as React from "react";
 import "./Components.scss";
+import { PinContext } from "./Pin";
 
-interface ToolbarProps {
-  placePinTool: typeof Tool;
-}
 
 /** Toolbar containing simple navigation tools */
-const toolbar = (props: ToolbarProps) => {
+const toolbar = () => {
   return (
     <div className="toolbar">
       <a href="#cursor" title={SelectionTool.flyover} onClick={select}><span className="icon icon-cursor"></span></a>
@@ -20,12 +18,16 @@ const toolbar = (props: ToolbarProps) => {
       <a href="#gyroscope" title={RotateViewTool.flyover} onClick={rotate}><span className="icon icon-gyroscope"></span></a>
       <a href="#hand" title={PanViewTool.flyover} onClick={pan}><span className="icon icon-hand-2"></span></a>
       <a href="#zoom" title={ZoomViewTool.flyover} onClick={zoom}><span className="icon icon-zoom"></span></a>
-      <a href="#place-pin"
-         title={props.placePinTool.flyover}
-         onClick={() => IModelApp.tools.run(props.placePinTool.toolId, props.placePinTool)}
-      >
-        <span className="icon icon-map"/>
-      </a>
+      <PinContext.Consumer>
+        {({PlacePin}) =>
+          <a href="#place-pin"
+            title={PlacePin.flyover}
+            onClick={() => IModelApp.tools.run(PlacePin.toolId, PlacePin)}
+          >
+            <span className="icon icon-map"/>
+          </a>
+        }
+      </PinContext.Consumer>
     </div>
   );
 };

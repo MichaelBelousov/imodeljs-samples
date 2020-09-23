@@ -7,7 +7,7 @@ import { ContextRegistryClient, Project } from "@bentley/context-registry-client
 import { Point3d } from "@bentley/geometry-core";
 import "@bentley/icons-generic-webfont/dist/bentley-icons-generic-webfont.css";
 import { IModelQuery } from "@bentley/imodelhub-client";
-import { AuthorizedFrontendRequestContext, DrawingViewState, FrontendRequestContext, IModelApp, IModelConnection, RemoteBriefcaseConnection, SpatialViewState } from "@bentley/imodeljs-frontend";
+import { AuthorizedFrontendRequestContext, BeButtonEvent, DrawingViewState, EventHandled, FrontendRequestContext, IModelApp, IModelConnection, PrimitiveTool, RemoteBriefcaseConnection, SpatialViewState, Tool } from "@bentley/imodeljs-frontend";
 import { SignIn, ViewportComponent } from "@bentley/ui-components";
 import { Button, ButtonSize, ButtonType, Spinner, SpinnerSize } from "@bentley/ui-core";
 import * as React from "react";
@@ -30,6 +30,26 @@ export interface AppState {
 
 /** A component the renders the whole application UI */
 export default class App extends React.Component<{}, AppState> {
+  public PlacePin: typeof Tool = (() => {
+    const componentThis = this;
+    return class PlacePin extends PrimitiveTool {
+      public static toolId = "PlacePin";
+      // this flyover value is actually supposed to be a key, not text. but the translator returns invalid keys
+      // For a real application, see https://www.imodeljs.org/learning/frontend/localization/
+      public static get flyover() { return "Place Pin"; }
+
+      public async onDataButtonDown(ev: BeButtonEvent) {
+        const nextPins = [...componentThis.state.pinLocations, ev.point];
+        componentThis.setState({pinLocations: nextPins});
+        this.exitTool(); // only let them place one marker at a time
+        return EventHandled.Yes;
+      }
+
+      public requireWriteableTarget () { return false; } // to support read-only iModels
+      // important for most applications, but we can ignore it since our scope is so small
+      public onRestartTool() {}
+    };
+  })();
 
   /** Creates an App instance */
   constructor(props?: any, context?: any) {
@@ -46,6 +66,9 @@ export default class App extends React.Component<{}, AppState> {
   public componentDidMount() {
     // Initialize authorization state, and add listener to changes
     BasicViewportApp.oidcClient.onUserStateChanged.addListener(this._onUserStateChanged);
+    // we need to attach a translation namespace, but we won't actually setup translation
+    this.PlacePin.namespace = IModelApp.i18n.registerNamespace("MyApp");
+    IModelApp.tools.register(this.PlacePin);
   }
 
   public componentWillUnmount() {
@@ -122,10 +145,7 @@ export default class App extends React.Component<{}, AppState> {
     } else {
       // if we do have an imodel and view definition id - render imodel components
       ui = (
-        <IModelComponents
-        imodel={this.state.imodel} viewDefinitionId={this.state.viewDefinitionId}
-        getPins={() => this.state.pinLocations}
-        setPins={(nextPins: Point3d[]) => this.setState({pinLocations: nextPins})} />);
+        <IModelComponents imodel={this.state.imodel} viewDefinitionId={this.state.viewDefinitionId} placePinTool={this.PlacePin} />);
     }
 
     // render the app
@@ -236,8 +256,7 @@ class OpenIModelButton extends React.PureComponent<OpenIModelButtonProps, OpenIM
 interface IModelComponentsProps {
   imodel: IModelConnection;
   viewDefinitionId: Id64String;
-  getPins(): Point3d[];
-  setPins(nextPins: Point3d[]): void;
+  placePinTool: typeof Tool;
 }
 
 /** Renders a viewport */
@@ -249,7 +268,7 @@ class IModelComponents extends React.PureComponent<IModelComponentsProps> {
           style={{ height: "100vh" }}
           imodel={this.props.imodel}
           viewDefinitionId={this.props.viewDefinitionId} />
-        <Toolbar  getPins={this.props.getPins} setPins={this.props.setPins} />
+        <Toolbar placePinTool={this.props.placePinTool} />
       </>
     );
   }

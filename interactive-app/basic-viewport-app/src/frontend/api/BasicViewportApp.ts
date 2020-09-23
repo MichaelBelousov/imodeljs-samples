@@ -9,7 +9,7 @@ import { FrontendRequestContext, IModelApp } from "@bentley/imodeljs-frontend";
 import { UrlDiscoveryClient } from "@bentley/itwin-client";
 import { UiComponents } from "@bentley/ui-components";
 import { getSupportedRpcs } from "../../common/rpcs";
-import { pinDecorator, PlacePin } from "../components/Pin";
+import { pinDecorator } from "../components/Pin";
 
 /**
  * List of possible backends that basic-viewport-app can use
@@ -29,10 +29,6 @@ export class BasicViewportApp {
 
   public static async startup() {
     await IModelApp.startup({ applicationVersion: "1.0.0" });
-
-    // we need to attach a translation namespace, but we won't actually setup translation
-    PlacePin.namespace = IModelApp.i18n.registerNamespace("MyApp");
-    IModelApp.tools.register(PlacePin);
 
     IModelApp.viewManager.addDecorator(pinDecorator);
 
